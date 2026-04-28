@@ -24,39 +24,61 @@ pipeline {
       }
     }
 
-    stage('Prepare Environment') {
+    stage('Verify System Tools') {
       steps {
         sh '''
-          echo "📦 Checking environment..."
+          echo "🔍 Checking system tools..."
 
-          python3 --version || true
-          pip3 --version || true
-          git --version || true
-          curl --version || true
+          command -v git || (echo "❌ git missing" && exit 1)
+          command -v python3 || (echo "❌ python3 missing" && exit 1)
+          command -v pip3 || echo "⚠ pip3 missing (optional)"
+          command -v curl || (echo "❌ curl missing" && exit 1)
+
+          echo "✔ System OK"
         '''
       }
     }
 
-    stage('Install Ollama') {
+    stage('Install Python deps (safe)') {
       steps {
         sh '''
-          if ! command -v ollama >/dev/null 2>&1; then
-            echo "🧠 Installing Ollama..."
-            curl -fsSL https://ollama.com/install.sh | sh
+          echo "📦 Python dependencies..."
+
+          pip3 install --user --upgrade pip || true
+
+          if [ -f requirements.txt ]; then
+            pip3 install --user -r requirements.txt || true
           else
-            echo "✔ Ollama already installed"
+            echo "No requirements.txt found"
           fi
         '''
       }
     }
 
-    stage('Start Ollama') {
+    stage('Verify Ollama') {
+      steps {
+        sh '''
+          echo "🧠 Checking Ollama..."
+
+          if ! command -v ollama >/dev/null 2>&1; then
+            echo "❌ Ollama not installed on VM"
+            echo "👉 Install manually:"
+            echo "curl -fsSL https://ollama.com/install.sh | sh"
+            exit 1
+          fi
+
+          echo "✔ Ollama OK"
+        '''
+      }
+    }
+
+    stage('Start Ollama (safe)') {
       steps {
         sh '''
           if ! pgrep -f "ollama serve" >/dev/null 2>&1; then
             echo "🚀 Starting Ollama..."
             nohup ollama serve > ollama.log 2>&1 &
-            sleep 10
+            sleep 8
           else
             echo "✔ Ollama already running"
           fi
@@ -64,7 +86,7 @@ pipeline {
       }
     }
 
-    stage('Pull Models (Cache Smart)') {
+    stage('Pull Models (idempotent)') {
       steps {
         sh '''
           echo "📦 Loading models..."
@@ -72,17 +94,19 @@ pipeline {
           ollama list | grep mistral || ollama pull mistral
           ollama list | grep codellama || ollama pull codellama
           ollama list | grep llama3 || ollama pull llama3
+
+          echo "✔ Models ready"
         '''
       }
     }
 
-    stage('Build Project (Auto Detect)') {
+    stage('Build Project (auto detect)') {
       steps {
         sh '''
           echo "🔧 Detecting project..."
 
           if [ -f package.json ]; then
-            echo "📦 Angular/Node detected"
+            echo "📦 Node/Angular detected"
             npm install || true
             npm run build || true
           fi
@@ -98,7 +122,7 @@ pipeline {
     stage('AI Analyze Project') {
       steps {
         sh '''
-          echo "🧠 Running AI analysis..."
+          echo "🧠 AI analyzing project..."
           python3 agent.py > ai-report.txt || true
         '''
         archiveArtifacts artifacts: 'ai-report.txt', allowEmptyArchive: true
@@ -109,7 +133,7 @@ pipeline {
       steps {
         sh '''
           if [ -f ollama.log ]; then
-            echo "🧠 Analyzing logs..."
+            echo "🧠 AI analyzing logs..."
 
             python3 - << 'EOF' > ai-errors.txt || true
 from agent import analyze_error
@@ -120,7 +144,7 @@ try:
 
     print(analyze_error(log))
 except Exception as e:
-    print("Error analyzing logs:", e)
+    print("Error:", e)
 EOF
           fi
         '''
@@ -131,7 +155,7 @@ EOF
 
   post {
     always {
-      echo "✅ Pipeline terminé avec succès (ou partiellement si erreurs ignorées)"
+      echo "✅ Pipeline finished safely"
     }
   }
 }
