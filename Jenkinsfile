@@ -12,11 +12,11 @@ pipeline {
 
   stages {
 
-    stage('Checkout') {
-      steps {
-        git 'https://github.com/tarekbensassi/ai-agent-advanced.git'
-      }
-    }
+   stage('Checkout') {
+  steps {
+    git branch: 'ai', url: 'https://github.com/tarekbensassi/ai-agent-advanced.git'
+  }
+}
 
     stage('Prepare Environment') {
       steps {
