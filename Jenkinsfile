@@ -6,8 +6,19 @@ pipeline {
     buildDiscarder(logRotator(numToKeepStr: '10'))
   }
 
+  parameters {
+    string(name: 'GIT_URL', defaultValue: 'https://github.com/tarekbensassi/ai-agent-advanced.git', description: 'URL du repository à analyser')
+    string(name: 'GIT_BRANCH', defaultValue: '*/ai', description: 'Branche à analyser')
+    string(name: 'MODEL_CODE', defaultValue: 'codellama', description: 'Modèle local pour le code')
+    string(name: 'MODEL_EXPLAIN', defaultValue: 'mistral', description: 'Modèle local pour les explications')
+    string(name: 'MODEL_REASON', defaultValue: 'llama3', description: 'Modèle local pour le raisonnement général')
+  }
+
   environment {
     PROJECT_PATH = "${WORKSPACE}"
+    MODEL_CODE = "${params.MODEL_CODE}"
+    MODEL_EXPLAIN = "${params.MODEL_EXPLAIN}"
+    MODEL_REASON = "${params.MODEL_REASON}"
   }
 
   stages {
@@ -16,9 +27,9 @@ pipeline {
       steps {
         checkout([
           $class: 'GitSCM',
-          branches: [[name: '*/ai']],
+          branches: [[name: "${params.GIT_BRANCH}"]],
           userRemoteConfigs: [[
-            url: 'https://github.com/tarekbensassi/ai-agent-advanced.git'
+            url: "${params.GIT_URL}"
           ]]
         ])
       }

@@ -7,6 +7,9 @@ echo "🚀 Setup AI Agent (advanced)"
 sudo apt update -y
 sudo apt install -y python3 python3-pip git curl ca-certificates
 
+# Install python deps
+pip3 install --user requests
+
 # Install Ollama if not present
 if ! command -v ollama >/dev/null 2>&1; then
   curl -fsSL https://ollama.com/install.sh | sh
@@ -30,5 +33,12 @@ done
 
 mkdir -p ~/ai-agent
 cp agent.py ~/ai-agent/agent.py
+chmod +x ~/ai-agent/agent.py
 
-echo "✅ Done. Run: python3 ~/ai-agent/agent.py"
+# Rendre la commande globale
+if [ -d "/usr/local/bin" ]; then
+  sudo ln -sf ~/ai-agent/agent.py /usr/local/bin/ai-agent
+fi
+
+echo "✅ Done. You can now use the global command: ai-agent"
+
